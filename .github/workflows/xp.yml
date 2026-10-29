@@ -1,0 +1,31 @@
+name: Update XP
+
+on:
+  push:
+    paths-ignore:
+      - "docs/xp.json"
+  schedule:
+    - cron: "30 18 * * *"   # 00:00 IST daily, keeps the streak fresh
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  xp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compute XP
+        run: python scripts/xp_tracker.py
+      - name: Commit XP data
+        run: |
+          git config user.name "xp-bot"
+          git config user.email "xp-bot@users.noreply.github.com"
+          git add docs/xp.json
+          git diff --staged --quiet || (git commit -m "chore: update XP tracker" && git push)

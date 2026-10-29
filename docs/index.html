@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quant Odyssey XP</title>
+<style>
+  :root { --bg:#0f1117; --fg:#e8e8ef; --mut:#8b90a0; --card:#181b24; --line:#262a36; --acc:#7c9cff; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7fb; --fg:#15171d; --mut:#6a7080; --card:#fff; --line:#e1e4ec; --acc:#3b5bdb; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:24px 16px; background:var(--bg); color:var(--fg);
+         font:16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 1.1rem; font-weight: 600; color: var(--mut); margin: 0 0 16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:16px; }
+  .level { font-size: 2.2rem; font-weight: 700; line-height: 1.1; }
+  .title { color: var(--acc); font-weight: 600; }
+  .bar { height:10px; background:var(--line); border-radius:99px; overflow:hidden; margin:14px 0 6px; }
+  .bar > div { height:100%; width:0; background:var(--acc); transition: width .6s; }
+  .row { display:flex; justify-content:space-between; gap:12px; color:var(--mut); font-size:.9rem; }
+  .stats { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; }
+  .stat b { display:block; font-size:1.4rem; }
+  .stat span { color:var(--mut); font-size:.85rem; }
+  .table-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:.92rem; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--mut); font-weight:500; }
+  .err { color:#e5484d; }
+</style>
+</head>
+<body>
+<main>
+  <h1>The Quant &amp; Capital Odyssey</h1>
+  <div class="card">
+    <div class="level">Level <span id="level">–</span></div>
+    <div class="title" id="title">Loading…</div>
+    <div class="bar"><div id="fill"></div></div>
+    <div class="row"><span id="xp">– XP</span><span id="next">–</span></div>
+  </div>
+  <div class="card stats">
+    <div class="stat"><b id="streak">–</b><span>current streak</span></div>
+    <div class="stat"><b id="best">–</b><span>best streak</span></div>
+    <div class="stat"><b id="logged">–</b><span>days logged</span></div>
+  </div>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Day</th><th>Date</th><th>XP</th><th>Tags</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div class="row" id="updated"></div>
+</main>
+<script>
+  // On <user>.github.io/<repo>/ read the freshest xp.json straight from the repo,
+  // so the page updates even before Pages finishes rebuilding. Falls back to local.
+  const parts = location.pathname.split("/").filter(Boolean);
+  const raw = location.hostname.endsWith("github.io") && parts[0]
+    ? `https://raw.githubusercontent.com/${location.hostname.split(".")[0]}/${parts[0]}/main/docs/xp.json`
+    : null;
+
+  async function load() {
+    const t = "?t=" + Date.now();
+    for (const url of [raw && raw + t, "xp.json" + t].filter(Boolean)) {
+      try { const r = await fetch(url); if (r.ok) return await r.json(); } catch (e) {}
+    }
+    throw new Error("Could not load xp.json");
+  }
+
+  function set(id, text) { document.getElementById(id).textContent = text; }
+
+  load().then(d => {
+    set("level", d.level);
+    set("title", d.title);
+    set("xp", d.total_xp.toLocaleString() + " XP");
+    set("next", d.xp_to_next + " XP to Level " + (d.level + 1));
+    const span = d.next_level_xp - d.level_floor_xp;
+    document.getElementById("fill").style.width =
+      Math.max(0, Math.min(100, (d.total_xp - d.level_floor_xp) / span * 100)) + "%";
+    set("streak", d.streak_current);
+    set("best", d.streak_longest);
+    set("logged", d.days_logged);
+    set("updated", "Updated " + d.updated_at);
+    const tbody = document.getElementById("rows");
+    d.days.slice().reverse().forEach(r => {
+      const tr = document.createElement("tr");
+      const tags = r.tags.join(", ") + (r.adjusted ? " (adj)" : "") + (r.streak_bonus ? " ×1.2" : "");
+      [r.day, r.date || "–", "+" + r.xp, tags || "–"].forEach(v => {
+        const td = document.createElement("td"); td.textContent = v; tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }).catch(e => {
+    set("title", e.message);
+    document.getElementById("title").className = "title err";
+  });
+</script>
+</body>
+</html>
